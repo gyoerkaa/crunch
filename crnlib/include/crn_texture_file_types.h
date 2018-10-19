@@ -1,7 +1,7 @@
 // File: crn_texture_file_types.h
 // See Copyright Notice and license at the end of inc/crnlib.h
 #pragma once
-#include "../inc/crnlib.h"
+#include "crnlib.h"
 #include "crn_vec.h"
 #include "crn_pixel_format.h"
 

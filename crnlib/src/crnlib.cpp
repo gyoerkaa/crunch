@@ -1,7 +1,7 @@
 // File: crnlib.cpp
 // See Copyright Notice and license at the end of inc/crnlib.h
 #include "crn_core.h"
-#include "../inc/crnlib.h"
+#include "crnlib.h"
 #include "crn_comp.h"
 #include "crn_dds_comp.h"
 #include "crn_dynamic_stream.h"
@@ -9,7 +9,7 @@
 #include "crn_ryg_dxt.hpp"
 #include "crn_etc.h"
 
-#include "../inc/crn_defs.h"
+#include "crn_defs.h"
 
 #include "crn_rg_etc1.h"
 

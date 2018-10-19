@@ -2,7 +2,7 @@
 // See Copyright Notice and license at the end of inc/crnlib.h
 #pragma once
 
-#include "../inc/crnlib.h"
+#include "crnlib.h"
 
 namespace crnlib {
 class mipmapped_texture;

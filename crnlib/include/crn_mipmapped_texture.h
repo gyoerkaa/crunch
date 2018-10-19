@@ -2,7 +2,7 @@
 // See Copyright Notice and license at the end of inc/crnlib.h
 #pragma once
 #include "crn_dxt_image.h"
-#include "../inc/dds_defs.h"
+#include "dds_defs.h"
 #include "crn_pixel_format.h"
 #include "crn_image.h"
 #include "crn_resampler.h"

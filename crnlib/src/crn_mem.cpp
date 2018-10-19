@@ -2,7 +2,7 @@
 // See Copyright Notice and license at the end of inc/crnlib.h
 #include "crn_core.h"
 #include "crn_console.h"
-#include "../inc/crnlib.h"
+#include "crnlib.h"
 #include <malloc.h>
 #if CRNLIB_USE_WIN32_API
 #include "crn_winhdr.h"

@@ -2,9 +2,9 @@
 // See Copyright Notice and license at the end of inc/crnlib.h
 #pragma once
 
-#include "../inc/crn_defs.h"
+#include "crn_defs.h"
 
-#include "../inc/crnlib.h"
+#include "crnlib.h"
 #include "crn_symbol_codec.h"
 #include "crn_dxt_hc.h"
 #include "crn_image.h"
