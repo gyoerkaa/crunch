@@ -1,17 +1,36 @@
+# Compiled Object files
+*.slo
+*.lo
 *.o
-*.2010.vcxproj.user
-*.2010.suo
-/crnlib/crunch
-/crnlib/Win32
-/crnlib/x64
-/crunch/Win32
-/crunch/x64
-/example1/Win32
-/example1/x64
-/example2/Win32
-/example2/x64
-/example3/Win32
-/example3/x64
-/lib
-/bin/*
-!bin/crunch_x64.exe
+*.obj
+
+
+# Precompiled Headers
+*.gch
+*.pch
+
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+
+# Executables
+*.exe
+*.out
+*.app
+
+
+# Build files
+*.vcxproj.user
+*.suo
+/.vs
+/build*
