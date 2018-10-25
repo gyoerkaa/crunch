@@ -15,6 +15,7 @@ const char* texture_file_types::get_extension(format fmt) {
           "dds",
           "crn",
           "ktx",
+          "dds", // cFormatNWN is dds too, but cFormatDDS should take precedence
 
           "tga",
           "png",
@@ -57,6 +58,7 @@ bool texture_file_types::supports_mipmaps(format fmt) {
     case cFormatCRN:
     case cFormatDDS:
     case cFormatKTX:
+    case cFormatNWN:
       return true;
     default:
       break;

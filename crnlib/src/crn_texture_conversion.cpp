@@ -294,6 +294,7 @@ static pixel_format choose_pixel_format(convert_params& params, const crn_comp_p
         return PIXEL_FMT_ETC1;
     }
   } else if (params.m_dst_file_type == texture_file_types::cFormatDDS) {
+    // Destination is regular DDS file
     if ((src_file_type != texture_file_types::cFormatCRN) && (src_file_type != texture_file_types::cFormatKTX) && (src_file_type != texture_file_types::cFormatDDS)) {
       if (is_normal_map) {
         return PIXEL_FMT_DXT5_AGBR;
@@ -307,6 +308,12 @@ static pixel_format choose_pixel_format(convert_params& params, const crn_comp_p
       else
         return PIXEL_FMT_DXT1;
     }
+  } else if (params.m_dst_file_type == texture_file_types::cFormatNWN) {
+    // Destination is Neverwinter Nights DDS file
+    if (pixel_format_helpers::has_alpha(src_fmt))
+      return PIXEL_FMT_DXT5; // Images with alpha are always DXT5
+    else
+      return PIXEL_FMT_DXT1; // Images without alpha are always DXT1
   } else {
     // Destination is a regular image format.
     if (pixel_format_helpers::is_grayscale(src_fmt)) {
@@ -528,6 +535,16 @@ bool process(convert_params& params, convert_stats& stats) {
     }
   }
 
+  if (params.m_dst_file_type == texture_file_types::cFormatNWN) {
+    // NWN DDS file need to be y-flipped, so we flip the texture,
+    // unless the user manually y-flips (which would undo it)
+    if (!params.m_y_flip) {
+      if (!work_tex.flip_y(false)) {
+        console::warning("Failed flipping texture on Y axis");
+      }
+    }
+  }
+
   if ((params.m_dst_format != PIXEL_FMT_INVALID) && (pixel_format_helpers::is_alpha_only(params.m_dst_format))) {
     if ((work_tex.get_comp_flags() & pixel_format_helpers::cCompFlagAValid) == 0) {
       console::warning("Output format is alpha-only, but input doesn't have alpha, so setting alpha to luminance.");
@@ -539,19 +556,17 @@ bool process(convert_params& params, convert_stats& stats) {
     }
   }
 
+  // Check file type for dxt support
   pixel_format dst_format = params.m_dst_format;
-  if (pixel_format_helpers::is_dxt(dst_format)) {
-    if ((params.m_dst_file_type != texture_file_types::cFormatCRN) &&
-        (params.m_dst_file_type != texture_file_types::cFormatDDS) &&
-        (params.m_dst_file_type != texture_file_types::cFormatKTX)) {
-      console::warning("Output file format does not support DXTc - automatically choosing a non-DXT pixel format.");
-      dst_format = PIXEL_FMT_INVALID;
-    }
+  if ((pixel_format_helpers::is_dxt(dst_format)) &&
+      (!texture_file_types::supports_mipmaps(params.m_dst_file_type))) {
+    console::warning("Output file format does not support DXTc - automatically choosing a non-DXT pixel format.");
+    dst_format = PIXEL_FMT_INVALID;
   }
 
+  // No destination format specified, auto select something reasonable
+  // This is actually much trickier than it seems, and the current approach kind of sucks.
   if (dst_format == PIXEL_FMT_INVALID) {
-    // Caller didn't specify a format to use, so try to pick something reasonable.
-    // This is actually much trickier than it seems, and the current approach kind of sucks.
     dst_format = choose_pixel_format(params, comp_params, work_tex, tex_type);
   }
 
@@ -560,8 +575,11 @@ bool process(convert_params& params, convert_stats& stats) {
   else if (dst_format == PIXEL_FMT_DXT1A)
     comp_params.set_flag(cCRNCompFlagDXT1AForTransparency, true);
 
-  if ((dst_format == PIXEL_FMT_DXT1A) && (params.m_dst_file_type == texture_file_types::cFormatCRN)) {
-    console::warning("CRN file format does not support DXT1A compressed textures - converting to DXT5 instead.");
+  // Check destination format for DXT1A compatibility
+  if ((dst_format == PIXEL_FMT_DXT1A) &&
+      ((params.m_dst_file_type == texture_file_types::cFormatCRN) ||
+       (params.m_dst_file_type == texture_file_types::cFormatNWN))) {
+    console::warning("Destination file format does not support DXT1A compressed textures - converting to DXT5 instead.");
     dst_format = PIXEL_FMT_DXT5;
   }
 
@@ -588,7 +606,7 @@ bool process(convert_params& params, convert_stats& stats) {
 
   bool generate_mipmaps = texture_file_types::supports_mipmaps(params.m_dst_file_type);
   if ((params.m_write_mipmaps_to_multiple_files) &&
-      ((params.m_dst_file_type != texture_file_types::cFormatCRN) && (params.m_dst_file_type != texture_file_types::cFormatDDS) && (params.m_dst_file_type != texture_file_types::cFormatKTX))) {
+      ((params.m_dst_file_type != texture_file_types::cFormatCRN) && (params.m_dst_file_type != texture_file_types::cFormatDDS) && (params.m_dst_file_type != texture_file_types::cFormatKTX) && (params.m_dst_file_type != texture_file_types::cFormatNWN))) {
     generate_mipmaps = true;
   }
 

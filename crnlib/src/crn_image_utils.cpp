@@ -937,6 +937,10 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
       img.set_comp_flags(static_cast<pixel_format_helpers::component_flags>(img.get_comp_flags() | pixel_format_helpers::cCompFlagGrayscale));
       break;
     }
+    case cConversion_Invert_Colors: {
+      // No need to set anything here
+      break;
+    }
     default: {
       CRNLIB_ASSERT(false);
       return;
@@ -1035,6 +1039,13 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
           dst.r = y;
           dst.g = y;
           dst.b = y;
+          dst.a = src.a;
+          break;
+        }
+        case cConversion_Invert_Colors: {
+          dst.r = 255-src.r;
+          dst.g = 255-src.g;
+          dst.b = 255-src.b;
           dst.a = src.a;
           break;
         }

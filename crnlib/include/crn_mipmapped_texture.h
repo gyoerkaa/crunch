@@ -183,6 +183,9 @@ class mipmapped_texture {
   void clear_last_error() { m_last_error.clear(); }
 
   // Reading/writing
+  bool read_nwn(data_stream_serializer& serializer);
+  bool write_nwn(data_stream_serializer& serializer) const;
+
   bool read_dds(data_stream_serializer& serializer);
   bool write_dds(data_stream_serializer& serializer) const;
 
@@ -323,6 +326,7 @@ class mipmapped_texture {
   void free_all_mips();
   bool read_regular_image(data_stream_serializer& serializer);
   bool write_regular_image(const char* pFilename, uint32 image_write_flags);
+  bool read_nwn_internal(data_stream_serializer& serializer, uint read_width=0);
   bool read_dds_internal(data_stream_serializer& serializer);
   void print_crn_comp_params(const crn_comp_params& p);
   bool write_comp_texture(const char* pFilename, const crn_comp_params& comp_params, uint32* pActual_quality_level, float* pActual_bitrate);

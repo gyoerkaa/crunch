@@ -71,6 +71,7 @@ struct DDSCAPS2 {
   crn_uint32 dwCaps4;
 };
 
+// Default DDS header
 struct DDSURFACEDESC2 {
   crn_uint32 dwSize;
   crn_uint32 dwFlags;
@@ -92,6 +93,18 @@ struct DDSURFACEDESC2 {
   DDPIXELFORMAT ddpfPixelFormat;
   DDSCAPS2 ddsCaps;
   crn_uint32 dwUnused1;
+};
+
+// Neverwinter Nights DDS header
+struct NWNDESC {
+  crn_uint32 dwWidth;
+  crn_uint32 dwHeight;
+  crn_uint32 dwChannels; // 3 => DXT1 or 4 => DXT5
+  union {
+    crn_int32 lPitch;
+    crn_uint32 dwLinearSize;
+  };
+  float fAlphaMean; // 1.0 if no alpha
 };
 
 const crn_uint32 DDSD_CAPS = 0x00000001;

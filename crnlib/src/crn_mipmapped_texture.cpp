@@ -456,6 +456,135 @@ mipmapped_texture& mipmapped_texture::operator=(const mipmapped_texture& rhs) {
   return *this;
 }
 
+bool mipmapped_texture::read_nwn(data_stream_serializer& serializer) {
+  if (!read_nwn_internal(serializer)) {
+    clear();
+    return false;
+  }
+  return true;
+}
+
+
+bool mipmapped_texture::read_nwn_internal(data_stream_serializer& serializer, crn_uint32 read_width) {
+  CRNLIB_ASSERT(serializer.get_little_endian());
+  clear();
+
+  NWNDESC desc;
+  if (read_width == 0) {
+    if (!serializer.read(&desc, sizeof(desc))) {
+      set_last_error("NWN DDS: Invalid Header Size");
+      return false;
+    }
+  }
+  else {
+    // Called from read_dds, the first four bytes have already been read (as magic word)
+    desc.dwWidth = read_width;
+    if (!serializer.read(&desc.dwHeight, sizeof(desc.dwHeight))) {
+      set_last_error("NWN DDS: Invalid Header");
+      return false;
+    }
+    if (!serializer.read(&desc.dwChannels, sizeof(desc.dwChannels))) {
+      set_last_error("NWN DDS: Invalid Header");
+      return false;
+    }
+    if (!serializer.read(&desc.lPitch, sizeof(desc.lPitch))) {
+      set_last_error("NWN DDS: Invalid Header");
+      return false;
+    }
+    if (!serializer.read(&desc.fAlphaMean, sizeof(desc.fAlphaMean))) {
+      set_last_error("NWN DDS: Invalid Header");
+      return false;
+    }
+  }
+
+  if (!c_crnlib_little_endian_platform)
+    utils::endian_switch_dwords(reinterpret_cast<uint32*>(&desc), sizeof(desc) / sizeof(uint32));
+
+  // Get width and height
+  m_width = desc.dwWidth;
+  m_height = desc.dwHeight;
+
+  // Get compression format from channel count
+  dxt_format dxt_fmt = cDXTInvalid;
+  switch (desc.dwChannels) {
+    case 3: {
+      m_format = PIXEL_FMT_DXT1;
+      dxt_fmt = cDXT1;
+      break;
+    }
+    case 4: {
+      m_format = PIXEL_FMT_DXT5;
+      dxt_fmt = cDXT5;
+      break;
+    }
+    default: {
+      set_last_error("NWN DDS: Unsupported BPP value");
+      return false;
+    }
+  }
+  set_last_error("NWN DDS: Load failed");
+
+  m_comp_flags = pixel_format_helpers::get_component_flags(m_format);
+  uint bits_per_pixel = pixel_format_helpers::get_bpp(m_format);
+
+  uint pitch = (((desc.dwWidth + 3) & ~3) * ((desc.dwHeight + 3) & ~3) * bits_per_pixel) >> 3;
+
+  m_faces.resize(1); // Always 1 for NWN DDS
+
+  uint mip_width = desc.dwWidth;
+  uint mip_height = desc.dwHeight;
+  uint level_index = 0;
+  uint max_mip_levels = utils::compute_max_mips(desc.dwWidth, desc.dwHeight);
+  while ((mip_width >= 1) && (mip_height >= 1) && (level_index <= max_mip_levels)) {
+    m_faces[0].resize(level_index+1); // Have to do it every time (for now)
+
+    mip_level* pMip = crnlib_new<mip_level>();
+    m_faces[0][level_index] = pMip;
+
+    const uint bytes_per_block = pixel_format_helpers::get_dxt_bytes_per_block(m_format);
+    const uint num_blocks_x = (mip_width + 3) >> 2;
+    const uint num_blocks_y = (mip_height + 3) >> 2;
+
+    const uint actual_level_pitch = num_blocks_x * num_blocks_y * bytes_per_block;
+    const uint level_pitch = level_index ? actual_level_pitch : pitch;
+
+    dxt_image* pDXTImage = crnlib_new<dxt_image>();
+    if (!pDXTImage->init(dxt_fmt, mip_width, mip_height, false)) {
+      crnlib_delete(pDXTImage);
+
+      CRNLIB_ASSERT(0);
+      return false;
+    }
+
+    CRNLIB_ASSERT(pDXTImage->get_element_vec().size() * sizeof(dxt_image::element) == actual_level_pitch);
+
+    if (!serializer.read(&pDXTImage->get_element_vec()[0], actual_level_pitch)) {
+      crnlib_delete(pDXTImage);
+      break;  // No more mipmaps
+    }
+
+    if (level_pitch > actual_level_pitch) {
+      if (!serializer.skip(level_pitch - actual_level_pitch)) {
+          crnlib_delete(pDXTImage);
+          break;  // No more mipmaps
+      }
+    }
+    // NWN DDS is y-flipped by default
+    pMip->assign(pDXTImage, m_format, cOrientationFlagYFlipped);
+    mip_width  >>= 1;
+    mip_height >>= 1;
+    level_index++;
+  }
+
+  if (level_index == 0) {
+    set_last_error("NWN DDS: No valid mipmaps");
+    return false;
+  }
+
+  clear_last_error();
+  return true;
+}
+
 bool mipmapped_texture::read_dds(data_stream_serializer& serializer) {
   if (!read_dds_internal(serializer)) {
     clear();
@@ -476,8 +605,12 @@ bool mipmapped_texture::read_dds_internal(data_stream_serializer& serializer) {
   if (!serializer.read(hdr, sizeof(hdr)))
     return false;
 
-  if (memcmp(hdr, "DDS ", 4) != 0)
-    return false;
+  if (memcmp(hdr, "DDS ", 4) != 0) {
+    // No magic word, might be an NWN DDS file, first 4 bytes are width
+    crn_uint32 read_width = hdr[3]<<24 | hdr[2]<<16 | hdr[1]<<8 | hdr[0];
+    return read_nwn_internal(serializer, read_width);
+    // return false;
+  }
 
   DDSURFACEDESC2 desc;
   if (!serializer.read(&desc, sizeof(desc)))
@@ -896,6 +1029,116 @@ bool mipmapped_texture::check() const {
 
   return true;
 }
+
+bool mipmapped_texture::write_nwn(data_stream_serializer& serializer) const {
+  if (!m_width) {
+    set_last_error("write_nwn(): Nothing to write");
+    return false;
+  }
+
+  if (!pixel_format_helpers::is_dxt(m_format)) {
+    set_last_error("write_nwn(): Format has to be DXT");
+    return false;
+  }
+
+  set_last_error("write_nwn() failed");
+
+  NWNDESC desc;
+  utils::zero_object(desc);
+
+  desc.dwWidth = m_width;
+  desc.dwHeight = m_height;
+
+  // Get channel count from pixel format
+  desc.dwChannels = 3;
+  if (pixel_format_helpers::has_alpha(m_format))
+    desc.dwChannels += 1;
+
+  // Get Pitch or Linear Size
+  uint bits_per_pixel = pixel_format_helpers::get_bpp(m_format);
+  desc.lPitch = (((desc.dwWidth + 3) & ~3) * ((desc.dwHeight + 3) & ~3) * bits_per_pixel) >> 3;
+
+  // Calculate alpha mean (not sure it's needed at all)
+  // Use alpha values of first level image
+  float alpha_mean = 1.0f;  // default
+  if (pixel_format_helpers::has_alpha(m_format)) {
+    if ((get_num_faces() > 0) && (get_num_levels() > 0)) {
+      image_u8 tmp;
+      image_u8* pImg = get_level_image(0, 0, tmp);
+      if ((pImg->has_alpha())) {
+        const color_quad_u8* pPixels = pImg->get_pixels();
+        alpha_mean = 0.0f;
+        for (uint px = 0; px < pImg->get_total_pixels(); px++) {
+          alpha_mean += pPixels[px].a;
+        }
+        alpha_mean = (alpha_mean / pImg->get_total_pixels()) / 255.0f;
+        console::info("alpha_mean: %3.3f", alpha_mean);
+      }
+    }
+  }
+  desc.fAlphaMean = alpha_mean;
+
+  if (!c_crnlib_little_endian_platform)
+    utils::endian_switch_dwords(reinterpret_cast<uint32*>(&desc), sizeof(desc) / sizeof(uint32));
+
+  if (!serializer.write(&desc, sizeof(desc)))
+    return false;
+
+  if (!c_crnlib_little_endian_platform)
+    utils::endian_switch_dwords(reinterpret_cast<uint32*>(&desc), sizeof(desc) / sizeof(uint32));
+
+  const bool can_unflip_packed_texture = can_unflip_without_unpacking();
+  if ((is_packed()) && (is_flipped()) && (!can_unflip_without_unpacking())) {
+    console::warning("mipmapped_texture::write_dds: One or more faces/miplevels cannot be unflipped without unpacking. Writing flipped .DDS texture.");
+  }
+
+  crnlib::vector<uint8> write_buf;
+  for (uint face = 0; face < get_num_faces(); face++) {
+    for (uint level = 0; level < get_num_levels(); level++) {
+      const mip_level* pLevel = get_level(face, level);
+      const uint width = pLevel->get_width();
+      const uint height = pLevel->get_height();
+
+      CRNLIB_ASSERT(width == math::maximum<uint>(1, m_width >> level));
+      CRNLIB_ASSERT(height == math::maximum<uint>(1, m_height >> level));
+
+      const dxt_image* p = pLevel->get_dxt_image();
+      dxt_image tmp;
+      if ((can_unflip_packed_texture) && (pLevel->get_orientation_flags() & (cOrientationFlagXFlipped | cOrientationFlagYFlipped))) {
+        tmp = *p;
+        if (pLevel->get_orientation_flags() & cOrientationFlagXFlipped) {
+          if (!tmp.flip_x())
+              console::warning("mipmapped_texture::write_nwn: Unable to unflip compressed texture on X axis");
+        }
+
+        if (pLevel->get_orientation_flags() & cOrientationFlagYFlipped) {
+          if (!tmp.flip_y())
+            console::warning("mipmapped_texture::write_nwn: Unable to unflip compressed texture on Y axis");
+        }
+        p = &tmp;
+      }
+
+      const uint num_blocks_x = (width + 3) >> 2;
+      const uint num_blocks_y = (height + 3) >> 2;
+
+      CRNLIB_ASSERT(num_blocks_x * num_blocks_y * p->get_elements_per_block() == p->get_total_elements());
+      width, height, num_blocks_x, num_blocks_y;
+
+      const uint size_in_bytes = p->get_total_elements() * sizeof(dxt_image::element);
+      if (size_in_bytes > write_buf.size())
+        write_buf.resize(size_in_bytes);
+
+      memcpy(&write_buf[0], p->get_element_ptr(), size_in_bytes);
+
+      if (!serializer.write(&write_buf[0], size_in_bytes))
+        return false;
+    }
+  }
+
+  clear_last_error();
+  return true;
+}
+
 
 bool mipmapped_texture::write_dds(data_stream_serializer& serializer) const {
   if (!m_width) {
@@ -2626,6 +2869,10 @@ bool mipmapped_texture::read_from_stream(data_stream_serializer& serializer, tex
         success = read_ktx(serializer);
         break;
       }
+      case texture_file_types::cFormatNWN: {
+        success = write_nwn(serializer);
+        break;
+      }
       default: {
         CRNLIB_ASSERT(0);
         break;
@@ -2861,6 +3108,10 @@ bool mipmapped_texture::write_to_file(
         success = write_ktx(serializer);
         break;
       }
+      case texture_file_types::cFormatNWN: {
+        success = write_nwn(serializer);
+        break;
+      }
       default: {
         break;
       }
@@ -3060,7 +3311,7 @@ bool mipmapped_texture::unflip(bool allow_unpacking_to_flip, bool uncook_if_nece
    bool mipmapped_texture::flip_x()
    {
       for (uint l = 0; l < m_faces.size(); l++)
-         for (uint m = 0; m < m_faces[l].size(); m++) 
+         for (uint m = 0; m < m_faces[l].size(); m++)
             if (!m_faces[l][m]->flip_x())
                return false;
 

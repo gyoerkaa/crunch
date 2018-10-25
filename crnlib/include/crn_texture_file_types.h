@@ -13,6 +13,7 @@ struct texture_file_types {
     cFormatDDS,
     cFormatCRN,
     cFormatKTX,
+    cFormatNWN,
 
     cNumMipmappedFileFormats,
 

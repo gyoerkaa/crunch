@@ -82,7 +82,7 @@ class crunch {
     console::printf("-timestamp - Update only changed files");
     console::printf("-forcewrite - Overwrite read-only files");
     console::printf("-recreate - Recreate directory structure");
-    console::printf("-fileformat [dds,ktx,crn,tga,bmp,png] - Output file format, default=crn or dds");
+    console::printf("-fileformat [dds,ktx,crn,tga,bmp,png,nwn] - Output file format, default=crn or dds");
 
     console::message("\nModes:");
     console::printf("-compare - Compare input and output files (no output files are written).");
@@ -106,6 +106,9 @@ class crunch {
     console::printf("-split - Write faces/mip levels to multiple separate output PNG files");
     console::printf("-yflip - Always flip texture on Y axis before processing");
     console::printf("-unflip - Unflip texture if read from source file as flipped");
+    console::printf("-converttoluma - Set RGB channels to luminosity.");
+    console::printf("-setalphatoluma - Set Alpha Channel to luminosity.");
+    console::printf("-invertcolors - Invert image colors.");
 
     console::message("\nImage rescaling (mutually exclusive options)");
     console::printf("-rescale <int> <int> - Rescale image to specified resolution");
@@ -163,13 +166,12 @@ class crunch {
 
     console::message("\nOuptut pixel format options:");
     console::printf("-usesourceformat - Use input file's format for output format (when possible).");
-    console::message("\nAll supported texture formats (Note: .CRN only supports DXTn pixel formats):");
+    console::message("\nAll supported texture formats:");
     for (uint32 i = 0; i < pixel_format_helpers::get_num_formats(); i++) {
       pixel_format fmt = pixel_format_helpers::get_pixel_format_by_index(i);
       console::printf("-%s", pixel_format_helpers::get_pixel_format_string(fmt));
     }
-
-    console::printf("\nFor bugs, support, or feedback: info@binomial.info");
+    console::message("\nNote: .CRN only supports DXTn pixel formats, NWN only support DXT1 and DXT5 formats.");
   }
 
   bool convert(const char* pCommand_line) {
@@ -225,6 +227,7 @@ class crunch {
             {"grayscalesampling", 0, false},
             {"converttoluma", 0, false},
             {"setalphatoluma", 0, false},
+            {"invertcolors", 0, false},
             {"pause", 0, false},
             {"timestamp", 0, false},
             {"nooverwrite", 0, false},
@@ -459,6 +462,8 @@ class crunch {
           out_file_type = texture_file_types::cFormatBMP;
         else if (fmt == "dds")
           out_file_type = texture_file_types::cFormatDDS;
+        else if (fmt == "nwn")
+          out_file_type = texture_file_types::cFormatNWN;
         else if (fmt == "ktx")
           out_file_type = texture_file_types::cFormatKTX;
         else if (fmt == "crn")
@@ -777,7 +782,7 @@ class crunch {
     if (m_params.has_key("q") || m_params.has_key("quality")) {
       const char* pKeyName = m_params.has_key("q") ? "q" : "quality";
 
-      if ((dst_file_format == texture_file_types::cFormatDDS) || (dst_file_format == texture_file_types::cFormatCRN) || (dst_file_format == texture_file_types::cFormatKTX)) {
+      if ((dst_file_format == texture_file_types::cFormatDDS) || (dst_file_format == texture_file_types::cFormatCRN) || (dst_file_format == texture_file_types::cFormatKTX) || (dst_file_format == texture_file_types::cFormatNWN)) {
         uint32 i = m_params.get_value_as_int(pKeyName, 0, cDefaultCRNQualityLevel, 0, cCRNMaxQualityLevel);
 
         comp_params.m_quality_level = i;
@@ -1033,6 +1038,8 @@ class crunch {
       src_tex.convert(image_utils::cConversion_Y_To_RGB);
     if (m_params.get_value_as_bool("setalphatoluma"))
       src_tex.convert(image_utils::cConversion_Y_To_A);
+    if (m_params.get_value_as_bool("invertcolors"))
+      src_tex.convert(image_utils::cConversion_Invert_Colors);
 
     texture_conversion::convert_params params;
 
@@ -1129,9 +1136,9 @@ static bool check_for_option(int argc, char* argv[], const char* pOption) {
 //-----------------------------------------------------------------------------------------------------------------------
 
 static void print_title() {
-  console::printf("crunch: Advanced DXTn Texture Compressor - https://github.com/BinomialLLC/crunch");
-  console::printf("Copyright (c) 2010-2016 Richard Geldreich, Jr. and Binomial LLC");
-  console::printf("crnlib version v%u.%02u %s Built %s, %s", CRNLIB_VERSION / 100U, CRNLIB_VERSION % 100U, crnlib_is_x64() ? "x64" : "x86", __DATE__, __TIME__);
+  console::printf("NWN Crunch: Texture Compression Tool");
+  console::printf("Based on crunch by Richard Geldreich, Jr. and Binomial LLC - https://github.com/BinomialLLC/crunch");
+  console::printf("libcrn version v%u.%02u %s Built %s, %s", CRNLIB_VERSION / 100U, CRNLIB_VERSION % 100U, crnlib_is_x64() ? "x64" : "x86", __DATE__, __TIME__);
   console::printf("");
 }
 
