@@ -225,9 +225,6 @@ class crunch {
             {"dxtQuality", 1, false},
             {"noendpointcaching", 0, false},
             {"grayscalesampling", 0, false},
-            {"converttoluma", 0, false},
-            {"setalphatoluma", 0, false},
-            {"invertcolors", 0, false},
             {"pause", 0, false},
             {"timestamp", 0, false},
             {"nooverwrite", 0, false},
@@ -257,6 +254,11 @@ class crunch {
 
             {"yflip", 0, false},
             {"unflip", 0, false},
+
+            {"converttoluma", 0, false},
+            {"setalphatoluma", 0, false},
+            {"setalphatored", 0, false},
+            {"invertcolors", 0, false},
         };
 
     crnlib::vector<command_line_params::param_desc> params;
@@ -1034,12 +1036,15 @@ class crunch {
     double total_time = tim.get_elapsed_secs();
     console::info("Texture successfully loaded in %3.3fs", total_time);
 
+    if (m_params.get_value_as_bool("invertcolors"))
+      src_tex.convert(image_utils::cConversion_Invert_Colors);
     if (m_params.get_value_as_bool("converttoluma"))
       src_tex.convert(image_utils::cConversion_Y_To_RGB);
     if (m_params.get_value_as_bool("setalphatoluma"))
       src_tex.convert(image_utils::cConversion_Y_To_A);
-    if (m_params.get_value_as_bool("invertcolors"))
-      src_tex.convert(image_utils::cConversion_Invert_Colors);
+    if (m_params.get_value_as_bool("setalphatored"))
+      src_tex.convert(image_utils::cConversion_R_To_A);
+
 
     texture_conversion::convert_params params;
 

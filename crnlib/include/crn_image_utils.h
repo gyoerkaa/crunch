@@ -139,7 +139,10 @@ enum conversion_type {
   cConversion_Y_To_RGB,
 
   cConversion_To_Y,
+
   cConversion_Invert_Colors,
+  cConversion_R_To_A,
+  cConversion_To_Rxxx,
 
   cConversionTotal
 };

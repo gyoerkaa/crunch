@@ -941,6 +941,10 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
       // No need to set anything here
       break;
     }
+    case cConversion_R_To_A: {
+      img.set_comp_flags(static_cast<pixel_format_helpers::component_flags>(img.get_comp_flags() | pixel_format_helpers::cCompFlagAValid));
+      break;
+    }
     default: {
       CRNLIB_ASSERT(false);
       return;
@@ -1047,6 +1051,13 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
           dst.g = 255-src.g;
           dst.b = 255-src.b;
           dst.a = src.a;
+          break;
+        }
+        case cConversion_R_To_A: {
+          dst.r = src.r;
+          dst.g = src.g;
+          dst.b = src.b;
+          dst.a = src.r;
           break;
         }
         default: {
