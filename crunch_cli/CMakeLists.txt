@@ -15,6 +15,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	target_link_libraries(${PROJECT_NAME} PUBLIC crnlib)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	target_compile_options(${PROJECT_NAME} PRIVATE -Wextra -Wall -g -Wno-unused-value -Wno-unused -fno-strict-aliasing -ffast-math -fno-math-errno)
-	target_link_libraries(${PROJECT_NAME} PUBLIC pthread crnlib)
+
+	#target_link_libraries(${PROJECT_NAME} PUBLIC pthread crnlib)
+	set(THREADS_PREFER_PTHREAD_FLAG ON)
+	find_package(Threads REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads crnlib)
 endif()
 

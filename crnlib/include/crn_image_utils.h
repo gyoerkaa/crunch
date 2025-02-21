@@ -141,11 +141,13 @@ enum conversion_type {
   cConversion_To_Y,
 
   cConversion_Invert_Colors,
-  cConversion_R_To_A,
-  cConversion_To_Rxxx,
+  cConversion_R_To_RGBA,
 
   cConversionTotal
 };
+
+void set_min_channel_value(image_u8& img, const uint8 min_value);
+bool reconstruct_normal(image_u8& img, const uint8 non_white_value = 255);
 
 void convert_image(image_u8& img, conversion_type conv_type);
 

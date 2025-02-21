@@ -518,6 +518,33 @@ bool process(convert_params& params, convert_stats& stats) {
 
   mipmapped_texture& work_tex = *params.m_pInput_texture;
 
+  if (params.m_drop_empty_alpha) {
+    if (work_tex.drop_empty_alpha()) {
+      console::info("Dropping Empty Alpha");
+    }
+  }
+
+  if (params.m_reconstruct_normal && work_tex.is_normal_map()) {
+    if (work_tex.reconstruct_normal()) {
+      console::info("Reconstructing Normal Map Blue Channel");
+    }
+  }
+
+  if (params.m_set_minvalue > 0) {
+    work_tex.set_min_channel_value(params.m_set_minvalue);
+    console::info("Setting minimum channel value to %d", params.m_set_minvalue);
+  }
+
+  if (params.m_invert_colors) {
+    console::info("Inverting Colors");
+    work_tex.convert(image_utils::cConversion_Invert_Colors);
+  }
+
+  if (params.m_normalize) {
+    console::info("Normalizing texture");
+    work_tex.normalize();
+  }
+
   if ((params.m_unflip) && (work_tex.is_flipped())) {
     console::info("Unflipping texture");
     work_tex.unflip(true, true);

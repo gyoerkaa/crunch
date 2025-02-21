@@ -86,6 +86,10 @@ class mip_level {
 
   bool set_alpha_to_luma();
   bool convert(image_utils::conversion_type conv_type);
+  bool normalize();
+  bool set_min_channel_value(const uint8 min_value);
+  bool drop_empty_alpha();
+  bool reconstruct_normal(const uint8 non_white_value = 254);
 
   bool flip_x();
   bool flip_y();
@@ -215,6 +219,10 @@ class mipmapped_texture {
   bool unpack_from_dxt(bool uncook = true);
 
   bool set_alpha_to_luma();
+  bool normalize();
+  bool set_min_channel_value(const uint8 min_value);
+  bool drop_empty_alpha();
+  bool reconstruct_normal(const uint8 non_white_value = 254);
 
   void discard_mipmaps();
 

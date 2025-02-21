@@ -883,6 +883,54 @@ static uint8 regen_z(uint x, uint y) {
   return static_cast<uint8>(math::clamp(ib, 0, 255));
 }
 
+void set_min_channel_value(image_u8& img, const uint8 min_value) {
+  for (uint y = 0; y < img.get_height(); y++) {
+    for (uint x = 0; x < img.get_width(); x++) {
+      color_quad_u8 src(img(x, y));
+      color_quad_u8 dst;
+
+      dst.r = math::maximum(min_value, src.r);
+      dst.g = math::maximum(min_value, dst.g);
+      dst.b = math::maximum(min_value, src.b);
+      dst.a = math::maximum(min_value, src.a);
+
+      img(x, y) = dst;
+    }
+  }
+}
+
+bool reconstruct_normal(image_u8& img, const uint8 non_white_value) {
+  if (!img.has_rgb())
+    return false;
+
+  // 2d normal map if blue channel is all white
+  // Return false, if no changes have been made
+  for (uint y = 0; y < img.get_height(); y++) {
+    for (uint x = 0; x < img.get_width(); x++) {
+      color_quad_u8 test(img(x, y));
+      // If a single pixel is not white just exit here
+      if (test.b <= non_white_value) {
+        return false;
+      }
+    }
+  }
+
+  for (uint y = 0; y < img.get_height(); y++) {
+    for (uint x = 0; x < img.get_width(); x++) {
+      color_quad_u8 src(img(x, y));
+      color_quad_u8 dst;
+
+      dst.r = src.r;
+      dst.g = src.g;
+      dst.b = regen_z(src.r, src.g);
+      dst.a = 255;
+
+      img(x, y) = dst;
+    }
+  }
+  return true;
+}
+
 void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
   switch (conv_type) {
     case image_utils::cConversion_To_CCxY: {
@@ -941,7 +989,7 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
       // No need to set anything here
       break;
     }
-    case cConversion_R_To_A: {
+    case cConversion_R_To_RGBA: {
       img.set_comp_flags(static_cast<pixel_format_helpers::component_flags>(img.get_comp_flags() | pixel_format_helpers::cCompFlagAValid));
       break;
     }
@@ -1053,10 +1101,10 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
           dst.a = src.a;
           break;
         }
-        case cConversion_R_To_A: {
+        case cConversion_R_To_RGBA: {
           dst.r = src.r;
-          dst.g = src.g;
-          dst.b = src.b;
+          dst.g = src.r;
+          dst.b = src.r;
           dst.a = src.r;
           break;
         }
@@ -1071,6 +1119,7 @@ void convert_image(image_u8& img, image_utils::conversion_type conv_type) {
     }
   }
 }
+
 
 image_utils::conversion_type get_conversion_type(bool cooking, pixel_format fmt) {
   image_utils::conversion_type conv_type = image_utils::cConversion_Invalid;

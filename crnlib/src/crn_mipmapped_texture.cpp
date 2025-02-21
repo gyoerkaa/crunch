@@ -280,6 +280,63 @@ bool mip_level::convert(image_utils::conversion_type conv_type) {
   return true;
 }
 
+bool mip_level::normalize() {
+  if (m_pDXTImage)
+    unpack_from_dxt(true);
+
+  image_utils::renorm_normal_map(*m_pImage);
+
+  return true;
+}
+
+bool mip_level::set_min_channel_value(const uint8 min_value) {
+  if (m_pDXTImage)
+    unpack_from_dxt(true);
+
+  image_utils::set_min_channel_value(*m_pImage, min_value);
+
+  m_comp_flags = m_pImage->get_comp_flags();
+
+  if (m_pImage->is_grayscale())
+    m_format = m_pImage->has_alpha() ? PIXEL_FMT_A8L8 : PIXEL_FMT_L8;
+  else
+    m_format = m_pImage->has_alpha() ? PIXEL_FMT_A8R8G8B8 : PIXEL_FMT_R8G8B8;
+
+  return true;
+}
+
+bool mip_level::drop_empty_alpha() {
+  if (m_pDXTImage)
+    unpack_from_dxt(true);
+
+  // crn_image "has_alpha" checks if channel is present
+  // crn_image_utils "has_alpha" checks every pixel for alpha value < 255
+  if (m_pImage->has_alpha() && !image_utils::has_alpha(*m_pImage)) {
+    m_pImage->set_component_valid(3, false);
+
+    m_comp_flags = m_pImage->get_comp_flags();
+
+    if (m_pImage->is_grayscale())
+        m_format = PIXEL_FMT_L8;
+    else
+        m_format = PIXEL_FMT_R8G8B8;
+
+    return true;
+  }
+  return false;
+}
+
+bool mip_level::reconstruct_normal(const uint8 non_white_value) {
+  if (m_pDXTImage)
+    unpack_from_dxt(true);
+
+  if (!m_pImage->has_rgb()) {
+      return image_utils::reconstruct_normal(*m_pImage, non_white_value);
+  }
+
+  return false;
+}
+
 bool mip_level::convert(pixel_format fmt, bool cook, const dxt_image::pack_params& p) {
   if (pixel_format_helpers::is_dxt(fmt))
     return pack_to_dxt(fmt, cook, p);
@@ -2230,6 +2287,85 @@ bool mipmapped_texture::convert(image_utils::conversion_type conv_type) {
   CRNLIB_ASSERT(check());
 
   return true;
+}
+
+bool mipmapped_texture::normalize() {
+  CRNLIB_ASSERT(is_valid());
+  if (!is_valid())
+    return false;
+
+  if (is_packed())
+    unpack_from_dxt(true);
+
+  for (uint f = 0; f < m_faces.size(); f++)
+    for (uint l = 0; l < get_num_levels(); l++)
+      get_level(f, l)->normalize();
+
+  m_format = get_level(0, 0)->get_format();
+  m_comp_flags = get_level(0, 0)->get_comp_flags();
+
+  CRNLIB_ASSERT(check());
+
+  return true;
+}
+
+bool mipmapped_texture::set_min_channel_value(const uint8 min_value) {
+  CRNLIB_ASSERT(is_valid());
+  if (!is_valid())
+    return false;
+
+  if (is_packed())
+    unpack_from_dxt(true);
+
+  for (uint f = 0; f < m_faces.size(); f++)
+    for (uint l = 0; l < get_num_levels(); l++)
+      get_level(f, l)->set_min_channel_value(min_value);
+
+  m_format = get_level(0, 0)->get_format();
+  m_comp_flags = get_level(0, 0)->get_comp_flags();
+
+  CRNLIB_ASSERT(check());
+
+  return true;
+}
+
+bool mipmapped_texture::drop_empty_alpha() {
+  CRNLIB_ASSERT(is_valid());
+  if (!is_valid())
+    return false;
+
+  if (is_packed())
+    unpack_from_dxt(true);
+
+  bool result = false;
+  for (uint f = 0; f < m_faces.size(); f++)
+    for (uint l = 0; l < get_num_levels(); l++)
+      result = result || get_level(f, l)->drop_empty_alpha();
+
+  m_format = get_level(0, 0)->get_format();
+  m_comp_flags = get_level(0, 0)->get_comp_flags();
+
+  CRNLIB_ASSERT(check());
+
+  return result;
+}
+
+bool mipmapped_texture::reconstruct_normal(const uint8 non_white_value) {
+  CRNLIB_ASSERT(is_valid());
+  if (!is_valid())
+    return false;
+
+  if (is_packed())
+    unpack_from_dxt(true);
+
+  bool result = false;
+  for (uint f = 0; f < m_faces.size(); f++)
+    for (uint l = 0; l < get_num_levels(); l++)
+      result = result || get_level(f, l)->reconstruct_normal(non_white_value);
+
+  CRNLIB_ASSERT(check());
+
+  return result;
 }
 
 bool mipmapped_texture::unpack_from_dxt(bool uncook) {

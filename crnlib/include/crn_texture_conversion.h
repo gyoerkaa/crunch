@@ -49,6 +49,11 @@ class convert_params {
         m_pProgress_func(NULL),
         m_pProgress_user_data(NULL),
         m_pIntermediate_texture(NULL),
+        m_set_minvalue(0),
+        m_invert_colors(false),
+        m_normalize(false),
+        m_reconstruct_normal(false),
+        m_drop_empty_alpha(false),
         m_y_flip(false),
         m_unflip(false),
         m_always_use_source_pixel_format(false),
@@ -88,6 +93,14 @@ class convert_params {
   mipmapped_texture* m_pIntermediate_texture;
   mutable dynamic_string m_error_message;
 
+  
+
+
+  uint8 m_set_minvalue;
+  bool m_invert_colors;
+  bool m_normalize;
+  bool m_reconstruct_normal;
+  bool m_drop_empty_alpha;
   bool m_y_flip;
   bool m_unflip;
   bool m_always_use_source_pixel_format;
@@ -96,6 +109,8 @@ class convert_params {
   bool m_debugging;
   bool m_param_debugging;
   bool m_no_stats;
+
+
 
   bool m_lzma_stats;
   mutable bool m_status;

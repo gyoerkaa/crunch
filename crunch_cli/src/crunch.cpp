@@ -106,9 +106,14 @@ class crunch {
     console::printf("-split - Write faces/mip levels to multiple separate output PNG files");
     console::printf("-yflip - Always flip texture on Y axis before processing");
     console::printf("-unflip - Unflip texture if read from source file as flipped");
-    console::printf("-converttoluma - Set RGB channels to luminosity.");
-    console::printf("-setalphatoluma - Set Alpha Channel to luminosity.");
-    console::printf("-invertcolors - Invert image colors.");
+    console::printf("-invertcolors - Invert image colors, default=disabled");
+    console::printf("-normalize - Normalize for normal maps, default=disabled");
+    console::printf("-minvalue <int> - Minimum value for all channels [0,255], default=0");
+    console::printf("-setRGBtoY - Set RGB channels to luminosity, default=disabled");
+    console::printf("-setAtoY - Set Alpha Channel to luminosity, default=disabled");
+    console::printf("-setRGBAtoR - Set RGBA channels to Red channel, default=disabled");
+    console::printf("-dropEmptyAlpha - Disregard white/unused alpha channel, default=disabled");
+    console::printf("-reconstructNormal - Calculate missing value for 2D normal maps, default=disabled");
 
     console::message("\nImage rescaling (mutually exclusive options)");
     console::printf("-rescale <int> <int> - Rescale image to specified resolution");
@@ -255,10 +260,14 @@ class crunch {
             {"yflip", 0, false},
             {"unflip", 0, false},
 
-            {"converttoluma", 0, false},
-            {"setalphatoluma", 0, false},
-            {"setalphatored", 0, false},
             {"invertcolors", 0, false},
+            {"normalize", 0, false},
+            {"setRGBtoY", 0, false},
+            {"setAtoY", 0, false},
+            {"setRGBAtoR", 0, false},
+            {"minvalue", 1, false},
+            {"dropEmptyAlpha", 0, false},
+            {"reconstructNormal", 0, false},
         };
 
     crnlib::vector<command_line_params::param_desc> params;
@@ -1036,15 +1045,22 @@ class crunch {
     double total_time = tim.get_elapsed_secs();
     console::info("Texture successfully loaded in %3.3fs", total_time);
 
-    if (m_params.get_value_as_bool("invertcolors"))
-      src_tex.convert(image_utils::cConversion_Invert_Colors);
-    if (m_params.get_value_as_bool("converttoluma"))
+    //if (m_params.get_value_as_bool("dropEmptyAlpha"))
+    //  src_tex.drop_empty_alpha();
+    //if (m_params.get_value_as_bool("reconstructNormal"))
+    //  src_tex.reconstruct_normal();
+    //if (m_params.get_value_as_int("minvalue", 0, 0, 0, 255) > 0)
+    //  src_tex.set_min_channel_value(m_params.get_value_as_int("minvalue", 0, 0, 0, 255));
+    //if (m_params.get_value_as_bool("invertcolors"))
+    //  src_tex.convert(image_utils::cConversion_Invert_Colors);
+    if (m_params.get_value_as_bool("setRGBtoY"))
       src_tex.convert(image_utils::cConversion_Y_To_RGB);
-    if (m_params.get_value_as_bool("setalphatoluma"))
+    if (m_params.get_value_as_bool("setAtoY"))
       src_tex.convert(image_utils::cConversion_Y_To_A);
-    if (m_params.get_value_as_bool("setalphatored"))
-      src_tex.convert(image_utils::cConversion_R_To_A);
-
+    if (m_params.get_value_as_bool("setRGBAtoR"))
+      src_tex.convert(image_utils::cConversion_R_To_RGBA);
+    //if (m_params.get_value_as_bool("normalize"))
+    //  src_tex.normalize();
 
     texture_conversion::convert_params params;
 
@@ -1057,6 +1073,10 @@ class crunch {
     params.m_always_use_source_pixel_format = m_params.has_key("usesourceformat");
     params.m_y_flip = m_params.has_key("yflip");
     params.m_unflip = m_params.has_key("unflip");
+    params.m_drop_empty_alpha = m_params.has_key("dropEmptyAlpha");
+    params.m_reconstruct_normal = m_params.has_key("reconstructNormal");
+    params.m_invert_colors = m_params.has_key("invertcolors");
+    params.m_normalize = m_params.has_key("normalize");
 
     if ((!m_params.get_value_as_bool("noprogress")) && (!m_params.get_value_as_bool("quiet")))
       params.m_pProgress_func = progress_callback_func;
